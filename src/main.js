@@ -1,3 +1,4 @@
+
 import "./style.css";
 
 import gsap from "gsap";
@@ -6,7 +7,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 gsap.registerPlugin(ScrollTrigger);
 
 /* ==========================================================================
-   Hero animations
+   HERO ANIMATIONS
    ========================================================================== */
 
 gsap.fromTo(
@@ -59,7 +60,7 @@ bottomTimeline
   );
 
 /* ==========================================================================
-   Pinned video section
+   PINNED VIDEO SECTION
    ========================================================================== */
 
 const videoSection = document.querySelector(".video-section");
@@ -70,9 +71,13 @@ if (videoSection && videoPlaceholder) {
     scrollTrigger: {
       trigger: videoSection,
       start: "top top",
-      end: "+=1200",
+
+      // Responsive pin duration
+      end: () => `+=${Math.round(window.innerHeight * 1.5)}`,
+
       scrub: 1,
       pin: true,
+      anticipatePin: 1,
       invalidateOnRefresh: true,
     },
   });
@@ -120,7 +125,7 @@ if (videoSection && videoPlaceholder) {
 }
 
 /* ==========================================================================
-   Brand introduction reveal
+   BRAND INTRODUCTION REVEAL
    ========================================================================== */
 
 const brandIntro = document.querySelector(".brand-intro");
@@ -130,19 +135,21 @@ if (brandIntro) {
   const introRight = brandIntro.querySelector(".brand-intro__right");
   const introLine = brandIntro.querySelector(".brand-intro__top");
 
-  gsap.from(introLine, {
-    scaleX: 0,
-    transformOrigin: "left center",
-    duration: 1,
-    ease: "power3.out",
-    scrollTrigger: {
-      trigger: brandIntro,
-      start: "top 80%",
-      once: true,
-    },
-  });
+  if (introLine) {
+    gsap.from(introLine, {
+      scaleX: 0,
+      transformOrigin: "left center",
+      duration: 1,
+      ease: "power3.out",
+      scrollTrigger: {
+        trigger: brandIntro,
+        start: "top 80%",
+        once: true,
+      },
+    });
+  }
 
-  gsap.from([introTitle, introRight], {
+  gsap.from([introTitle, introRight].filter(Boolean), {
     y: 35,
     opacity: 0,
     duration: 0.9,
@@ -157,8 +164,7 @@ if (brandIntro) {
 }
 
 /* ==========================================================================
-   Client logo marquee
-   Duplicate each row's cards so the loop can wrap without a visible gap.
+   CLIENT LOGO MARQUEE
    ========================================================================== */
 
 const logoTracks = gsap.utils.toArray(".logo-track");
@@ -170,6 +176,7 @@ logoTracks.forEach((track, index) => {
       clone.setAttribute("aria-hidden", "true");
       track.appendChild(clone);
     });
+
     track.dataset.loopReady = "true";
   }
 
@@ -178,7 +185,9 @@ logoTracks.forEach((track, index) => {
 
   gsap.fromTo(
     track,
-    { x: startsFromLeft ? 0 : () => -halfWidth() },
+    {
+      x: startsFromLeft ? 0 : () => -halfWidth(),
+    },
     {
       x: startsFromLeft ? () => -halfWidth() : 0,
       duration: 50,
@@ -188,21 +197,18 @@ logoTracks.forEach((track, index) => {
   );
 });
 
-/* ========================================
-   REVIVE — HORIZONTAL WORK + IMAGE REVEAL
-======================================== */
+/* ==========================================================================
+   HORIZONTAL WORK SLIDER + IMAGE REVEAL
+   ========================================================================== */
 
 const workSection = document.querySelector(".work-section");
 const workTrack = document.querySelector(".work-track");
 
 if (workSection && workTrack) {
-  // Calculate total horizontal distance
+  // Use the actual section width instead of the browser width.
   const getScrollDistance = () =>
-    Math.max(0, workTrack.scrollWidth - window.innerWidth);
+    Math.max(0, workTrack.scrollWidth - workSection.clientWidth);
 
-  // Horizontal movement.
-  // Keep this as a separate linear tween because image
-  // ScrollTriggers use it as their container animation.
   const workTween = gsap.to(workTrack, {
     x: () => -getScrollDistance(),
     ease: "none",
@@ -218,9 +224,12 @@ if (workSection && workTrack) {
     },
   });
 
-  // Reveal each project image from bottom to top
-
+  // Reveal project images from bottom to top.
   gsap.utils.toArray(".work-slide .work-image").forEach((image) => {
+    const slide = image.closest(".work-slide");
+
+    if (!slide) return;
+
     gsap.fromTo(
       image,
       {
@@ -235,7 +244,7 @@ if (workSection && workTrack) {
         opacity: 1,
         ease: "none",
         scrollTrigger: {
-          trigger: image.closest(".work-slide"),
+          trigger: slide,
           containerAnimation: workTween,
           start: "left 85%",
           end: "left 35%",
@@ -246,7 +255,7 @@ if (workSection && workTrack) {
     );
   });
 
-  // Refresh measurements after images load
+  // Refresh measurements when project images load.
   workTrack.querySelectorAll("img").forEach((img) => {
     if (!img.complete) {
       img.addEventListener("load", () => ScrollTrigger.refresh(), {
@@ -258,17 +267,12 @@ if (workSection && workTrack) {
       });
     }
   });
-
-  window.addEventListener("load", () => ScrollTrigger.refresh(), {
-    once: true,
-  });
 }
 
-/* ========================================
-   SERVICES SECTION ANIMATION
-======================================== */
 
-gsap.registerPlugin(ScrollTrigger);
+/* ==========================================================================
+   SERVICES SECTION ANIMATION
+   ========================================================================== */
 
 const servicesSection = document.querySelector(".services-section");
 
@@ -312,13 +316,13 @@ if (servicesSection) {
   );
 }
 
-/* ========================================
-   SERVICES — SEQUENTIAL SCROLL ANIMATION
-======================================== */
+/* ==========================================================================
+   SERVICE CARDS — PINNED SCROLL ANIMATION
+   ========================================================================== */
 
-gsap.registerPlugin(ScrollTrigger);
-
-const serviceCardSection = document.querySelector(".service-cards-section");
+const serviceCardSection = document.querySelector(
+  ".service-cards-section",
+);
 
 const serviceCards = gsap.utils.toArray(".service-card");
 
@@ -328,11 +332,14 @@ if (serviceCardSection && serviceCards.length) {
     autoAlpha: 0,
   });
 
-  const tl = gsap.timeline({
+  const servicesTl = gsap.timeline({
     scrollTrigger: {
       trigger: serviceCardSection,
       start: "top top",
-      end: () => `+=${window.innerHeight * 2.5}`,
+
+      // Pin duration adjusts to the current screen height.
+      end: () => `+=${Math.round(window.innerHeight * 2.5)}`,
+
       pin: true,
       scrub: 1,
       anticipatePin: 1,
@@ -340,8 +347,8 @@ if (serviceCardSection && serviceCards.length) {
     },
   });
 
-  // Cards enter with a slight stagger
-  tl.to(serviceCards, {
+  // Cards enter with a stagger.
+  servicesTl.to(serviceCards, {
     y: 0,
     autoAlpha: 1,
     duration: 2,
@@ -349,35 +356,33 @@ if (serviceCardSection && serviceCards.length) {
     ease: "power3.out",
   });
 
-  // Hold all cards on screen
-  tl.to(
+  // Brief hold while all cards are visible.
+  servicesTl.to(
     {},
     {
       duration: 0.2,
     },
   );
 
-  // Cards exit upward with a slight stagger
-  tl.to(serviceCards, {
-    y: -window.innerHeight,
+  // Cards exit upward using the latest viewport height.
+  servicesTl.to(serviceCards, {
+    y: () => -window.innerHeight,
     autoAlpha: 0,
     duration: 2,
     stagger: 0.8,
     ease: "power3.in",
   });
-
-  window.addEventListener("load", () => ScrollTrigger.refresh(), {
-    once: true,
-  });
 }
 
-/* ========================================
+
+
+/* ==========================================================================
    EXPLORE COLLABORATIONS ANIMATION
-======================================== */
+   ========================================================================== */
 
-gsap.registerPlugin(ScrollTrigger);
-
-const collaborationsSection = document.querySelector(".collaborations-section");
+const collaborationsSection = document.querySelector(
+  ".collaborations-section",
+);
 
 if (collaborationsSection) {
   const collaborationsTl = gsap.timeline({
@@ -389,7 +394,7 @@ if (collaborationsSection) {
     },
   });
 
-  // Heading: words reveal upward, one after another
+  // Heading words reveal one after another.
   collaborationsTl.from(
     ".collaborations-heading span",
     {
@@ -402,7 +407,7 @@ if (collaborationsSection) {
     0,
   );
 
-  // Featured brands appear slightly later
+  // Featured brands appear next.
   collaborationsTl.from(
     ".collaborations-featured",
     {
@@ -414,7 +419,7 @@ if (collaborationsSection) {
     0.3,
   );
 
-  // Learn More link reveals last
+  // Learn More link reveals last.
   collaborationsTl.from(
     ".collaborations-link",
     {
@@ -427,13 +432,17 @@ if (collaborationsSection) {
   );
 }
 
-/* ===== PEOPLE SECTION ANIMATION ===== */
+/* ==========================================================================
+   PEOPLE SECTION ANIMATION
+   ========================================================================== */
 
 const peopleSection = document.querySelector(".people-section");
 const peopleList = document.querySelector(".people-list");
 const peopleTrack = document.querySelector(".people-list-track");
 const peopleImage = document.querySelector(".people-preview");
-const peopleImageElement = document.querySelector(".people-preview-image");
+const peopleImageElement = document.querySelector(
+  ".people-preview-image",
+);
 
 if (
   peopleSection &&
@@ -447,9 +456,11 @@ if (
   );
 
   if (peopleItems.length) {
-    const peopleState = { activeIndex: -1 };
+    const peopleState = {
+      activeIndex: -1,
+    };
 
-    // Image entrance starting state
+    // Initial image state.
     gsap.set(peopleImage, {
       autoAlpha: 0,
       scale: 0.88,
@@ -460,16 +471,18 @@ if (
       scale: 1.12,
     });
 
-    // Names ki starting aur ending position calculate karo
+    // Calculate name positions from the current layout.
     function getTrackPositions() {
       const firstItem = peopleItems[0];
       const lastItem = peopleItems[peopleItems.length - 1];
 
       const viewportHeight = peopleList.clientHeight;
 
-      const firstCenter = firstItem.offsetTop + firstItem.offsetHeight / 2;
+      const firstCenter =
+        firstItem.offsetTop + firstItem.offsetHeight / 2;
 
-      const lastCenter = lastItem.offsetTop + lastItem.offsetHeight / 2;
+      const lastCenter =
+        lastItem.offsetTop + lastItem.offsetHeight / 2;
 
       return {
         startY: viewportHeight - firstCenter + 25,
@@ -477,7 +490,7 @@ if (
       };
     }
 
-    // Ek waqt mein sirf ek naam active rahega
+    // Keep only one name active at a time.
     function updateActiveName(progress) {
       const index = Math.min(
         peopleItems.length - 1,
@@ -493,14 +506,16 @@ if (
       });
     }
 
-    // Initial selected name
     updateActiveName(0);
 
     const peopleTimeline = gsap.timeline({
       scrollTrigger: {
         trigger: peopleSection,
         start: "top top",
-        end: () => `+=${window.innerHeight * 3}`,
+
+        // Adjust pinned duration to the current viewport.
+        end: () => `+=${Math.round(window.innerHeight * 3)}`,
+
         pin: true,
         scrub: 1,
         anticipatePin: 1,
@@ -516,7 +531,7 @@ if (
       },
     });
 
-    // Image smoothly fade-in + zoom-out into its final size
+    // Preview image fades in and settles into place.
     peopleTimeline.to(
       peopleImage,
       {
@@ -539,7 +554,7 @@ if (
       0,
     );
 
-    // Names bottom se top ki taraf move karenge
+    // Names move from bottom to top.
     peopleTimeline.fromTo(
       peopleTrack,
       {
@@ -552,347 +567,86 @@ if (
       },
       0,
     );
-
-    // Refresh positions after viewport changes
-    window.addEventListener("resize", () => {
-      ScrollTrigger.refresh();
-    });
   }
 }
 
-gsap.registerPlugin(ScrollTrigger);
+
+
+/* ==========================================================================
+   STAND OUT — INDIVIDUAL LETTER ANIMATION
+   ========================================================================== */
 
 const section = document.querySelector(".stand-out");
 const track = document.querySelector(".stand-out-track");
 const letters = gsap.utils.toArray(".stand-out .letter");
 
-// =====================================
-// 1. LETTER ANIMATION SETTINGS
-// Sirf in values ko change karna hai.
-// =====================================
-
 const letterSettings = [
-  // Letter 1: S
-  {
-    x: -80,
-    y: -150,
-    rotation: -45,
-    scale: 0.5,
-    opacity: 0,
-    start: 0,
-    duration: 0.8
-  },
-
-  // Letter 2: o
-  {
-    x: 80,
-    y: 120,
-    rotation: 45,
-    scale: 0.6,
-    opacity: 0,
-    start: 0.1,
-    duration: 0.8
-  },
-
-  // Letter 3: ,
-  {
-    x: 0,
-    y: -100,
-    rotation: 90,
-    scale: 0.4,
-    opacity: 0,
-    start: 0.2,
-    duration: 0.7
-  },
-
-  // Letter 4: a
-  {
-    x: -100,
-    y: 80,
-    rotation: -60,
-    scale: 0.5,
-    opacity: 0,
-    start: 0.3,
-    duration: 0.8
-  },
-
-  // Letter 5: r
-  {
-    x: 50,
-    y: -120,
-    rotation: 30,
-    scale: 0.7,
-    opacity: 0,
-    start: 0.4,
-    duration: 0.8
-  },
-
-  // Letter 6: e
-  {
-    x: 0,
-    y: 150,
-    rotation: -35,
-    scale: 0.6,
-    opacity: 0,
-    start: 0.5,
-    duration: 0.8
-  },
-
-  // Letter 7: y
-  {
-    x: -60,
-    y: -100,
-    rotation: 50,
-    scale: 0.5,
-    opacity: 0,
-    start: 0.6,
-    duration: 0.8
-  },
-
-  // Letter 8: o
-  {
-    x: 100,
-    y: 80,
-    rotation: -45,
-    scale: 0.6,
-    opacity: 0,
-    start: 0.7,
-    duration: 0.8
-  },
-
-  // Letter 9: u
-  {
-    x: -40,
-    y: 140,
-    rotation: 25,
-    scale: 0.5,
-    opacity: 0,
-    start: 0.8,
-    duration: 0.8
-  },
-
-  // Letter 10: r
-  {
-    x: 80,
-    y: -130,
-    rotation: -50,
-    scale: 0.6,
-    opacity: 0,
-    start: 0.9,
-    duration: 0.8
-  },
-
-  // Letter 11: e
-  {
-    x: -90,
-    y: 100,
-    rotation: 40,
-    scale: 0.5,
-    opacity: 0,
-    start: 1.0,
-    duration: 0.8
-  },
-
-  // Letter 12: a
-  {
-    x: 60,
-    y: -80,
-    rotation: -30,
-    scale: 0.7,
-    opacity: 0,
-    start: 1.1,
-    duration: 0.8
-  },
-
-  // Letter 13: d
-  {
-    x: -50,
-    y: 120,
-    rotation: 60,
-    scale: 0.5,
-    opacity: 0,
-    start: 1.2,
-    duration: 0.8
-  },
-
-  // Letter 14: y
-  {
-    x: 90,
-    y: -150,
-    rotation: -40,
-    scale: 0.6,
-    opacity: 0,
-    start: 1.3,
-    duration: 0.8
-  },
-
-  // Letter 15: t
-  {
-    x: -100,
-    y: 80,
-    rotation: 45,
-    scale: 0.5,
-    opacity: 0,
-    start: 1.4,
-    duration: 0.8
-  },
-
-  // Letter 16: o
-  {
-    x: 60,
-    y: -120,
-    rotation: -60,
-    scale: 0.6,
-    opacity: 0,
-    start: 1.5,
-    duration: 0.8
-  },
-
-  // Letter 17: s
-  {
-    x: -80,
-    y: 140,
-    rotation: 35,
-    scale: 0.5,
-    opacity: 0,
-    start: 1.6,
-    duration: 0.8
-  },
-
-  // Letter 18: t
-  {
-    x: 100,
-    y: -100,
-    rotation: -45,
-    scale: 0.6,
-    opacity: 0,
-    start: 1.7,
-    duration: 0.8
-  },
-
-  // Letter 19: a
-  {
-    x: -60,
-    y: 100,
-    rotation: 55,
-    scale: 0.5,
-    opacity: 0,
-    start: 1.8,
-    duration: 0.8
-  },
-
-  // Letter 20: n
-  {
-    x: 80,
-    y: -130,
-    rotation: -30,
-    scale: 0.6,
-    opacity: 0,
-    start: 1.9,
-    duration: 0.8
-  },
-
-  // Letter 21: d
-  {
-    x: -90,
-    y: 120,
-    rotation: 40,
-    scale: 0.5,
-    opacity: 0,
-    start: 2.0,
-    duration: 0.8
-  },
-
-  // Letter 22: o
-  {
-    x: 50,
-    y: -100,
-    rotation: -50,
-    scale: 0.6,
-    opacity: 0,
-    start: 2.1,
-    duration: 0.8
-  },
-
-  // Letter 23: u
-  {
-    x: -70,
-    y: 150,
-    rotation: 35,
-    scale: 0.5,
-    opacity: 0,
-    start: 2.2,
-    duration: 0.8
-  },
-
-  // Letter 24: t
-  {
-    x: 100,
-    y: -80,
-    rotation: -40,
-    scale: 0.6,
-    opacity: 0,
-    start: 2.3,
-    duration: 0.8
-  },
-
-  // Letter 25: ?
-  {
-    x: 0,
-    y: 150,
-    rotation: 90,
-    scale: 0.4,
-    opacity: 0,
-    start: 2.4,
-    duration: 0.8
-  }
+  { x: -80, y: -150, rotation: -45, scale: 0.5, opacity: 0, start: 0, duration: 0.8 },
+  { x: 80, y: 120, rotation: 45, scale: 0.6, opacity: 0, start: 0.1, duration: 0.8 },
+  { x: 0, y: -100, rotation: 90, scale: 0.4, opacity: 0, start: 0.2, duration: 0.7 },
+  { x: -100, y: 80, rotation: -60, scale: 0.5, opacity: 0, start: 0.3, duration: 0.8 },
+  { x: 50, y: -120, rotation: 30, scale: 0.7, opacity: 0, start: 0.4, duration: 0.8 },
+  { x: 0, y: 150, rotation: -35, scale: 0.6, opacity: 0, start: 0.5, duration: 0.8 },
+  { x: -60, y: -100, rotation: 50, scale: 0.5, opacity: 0, start: 0.6, duration: 0.8 },
+  { x: 100, y: 80, rotation: -45, scale: 0.6, opacity: 0, start: 0.7, duration: 0.8 },
+  { x: -40, y: 140, rotation: 25, scale: 0.5, opacity: 0, start: 0.8, duration: 0.8 },
+  { x: 80, y: -130, rotation: -50, scale: 0.6, opacity: 0, start: 0.9, duration: 0.8 },
+  { x: -90, y: 100, rotation: 40, scale: 0.5, opacity: 0, start: 1.0, duration: 0.8 },
+  { x: 60, y: -80, rotation: -30, scale: 0.7, opacity: 0, start: 1.1, duration: 0.8 },
+  { x: -50, y: 120, rotation: 60, scale: 0.5, opacity: 0, start: 1.2, duration: 0.8 },
+  { x: 90, y: -150, rotation: -40, scale: 0.6, opacity: 0, start: 1.3, duration: 0.8 },
+  { x: -100, y: 80, rotation: 45, scale: 0.5, opacity: 0, start: 1.4, duration: 0.8 },
+  { x: 60, y: -120, rotation: -60, scale: 0.6, opacity: 0, start: 1.5, duration: 0.8 },
+  { x: -80, y: 140, rotation: 35, scale: 0.5, opacity: 0, start: 1.6, duration: 0.8 },
+  { x: 100, y: -100, rotation: -45, scale: 0.6, opacity: 0, start: 1.7, duration: 0.8 },
+  { x: -60, y: 100, rotation: 55, scale: 0.5, opacity: 0, start: 1.8, duration: 0.8 },
+  { x: 80, y: -130, rotation: -30, scale: 0.6, opacity: 0, start: 1.9, duration: 0.8 },
+  { x: -90, y: 120, rotation: 40, scale: 0.5, opacity: 0, start: 2.0, duration: 0.8 },
+  { x: 50, y: -100, rotation: -50, scale: 0.6, opacity: 0, start: 2.1, duration: 0.8 },
+  { x: -70, y: 150, rotation: 35, scale: 0.5, opacity: 0, start: 2.2, duration: 0.8 },
+  { x: 100, y: -80, rotation: -40, scale: 0.6, opacity: 0, start: 2.3, duration: 0.8 },
+  { x: 0, y: 150, rotation: 90, scale: 0.4, opacity: 0, start: 2.4, duration: 0.8 },
 ];
 
-// =====================================
-// 2. PINNED SCROLL TIMELINE
-// =====================================
-
 if (section && track && letters.length) {
-  const tl = gsap.timeline({
+  const standOutTimeline = gsap.timeline({
     scrollTrigger: {
       trigger: section,
       start: "top top",
-      end: () => `+=${window.innerHeight * 3}`,
+      end: () => `+=${Math.round(window.innerHeight * 3)}`,
       pin: true,
       scrub: 1,
       anticipatePin: 1,
-      invalidateOnRefresh: true
-    }
+      invalidateOnRefresh: true,
+    },
   });
 
-  // Text ko right se left move karna
-  tl.fromTo(
+  standOutTimeline.fromTo(
     track,
     {
-      x: () => window.innerWidth
+      x: () => window.innerWidth,
     },
     {
       x: () => -track.scrollWidth,
       duration: 4,
-      ease: "none"
+      ease: "none",
     },
-    0
+    0,
   );
 
-  // Har letter ki individual animation
   letters.forEach((letter, index) => {
     const settings = letterSettings[index];
 
     if (!settings) return;
 
-    tl.fromTo(
+    standOutTimeline.fromTo(
       letter,
       {
         x: settings.x,
         y: settings.y,
         rotation: settings.rotation,
         scale: settings.scale,
-        opacity: settings.opacity
+        opacity: settings.opacity,
       },
       {
         x: 0,
@@ -901,70 +655,42 @@ if (section && track && letters.length) {
         scale: 1,
         opacity: 1,
         duration: settings.duration,
-        ease: "power3.out"
+        ease: "power3.out",
       },
-      settings.start
+      settings.start,
     );
   });
 }
 
 
 
-(() => {
-  gsap.registerPlugin(ScrollTrigger);
+/* ==========================================================================
+   FOOTER — CONTENT + REVIVE LETTER ANIMATION
+   ========================================================================== */
 
-  // ========================================
-  // 1. SELECT FOOTER ELEMENTS
-  // ========================================
+const footer = document.querySelector(".agency-footer");
 
-  const footer = document.querySelector(".agency-footer");
-
-  if (!footer) return;
-
+if (footer) {
   const reviveContainer = footer.querySelector(".revive-container");
+
   const reviveLetters = reviveContainer
     ? Array.from(reviveContainer.querySelectorAll(".revive-letter"))
     : [];
 
-  // Update copyright year
   const yearElement = footer.querySelector("#footer-year");
 
   if (yearElement) {
     yearElement.textContent = new Date().getFullYear();
   }
 
-  // ========================================
-  // 2. CUSTOM SETTINGS — R E V I V E
-  // Change these values to customize letters
-  // ========================================
-
-  const reviveSettings = [
-    // R
-    { x: -180, y: -100, rotation: -35, scale: 0.65, delay: 0 },
-    // E
-    { x: 150, y: 120, rotation: 35, scale: 0.65, delay: 0.15 },
-    // V
-    { x: -100, y: 150, rotation: -25, scale: 0.65, delay: 0.30 },
-    // I
-    { x: 80, y: -140, rotation: 45, scale: 0.65, delay: 0.45 },
-    // V
-    { x: 150, y: 100, rotation: 30, scale: 0.65, delay: 0.60 },
-    // E
-    { x: 180, y: -100, rotation: -35, scale: 0.65, delay: 0.75 }
-  ];
-
-  // ========================================
-  // 3. FOOTER CONTENT REVEAL
-  // ========================================
-
   const footerContent = footer.querySelectorAll(
     ".footer-left h2, " +
-    ".footer-cta, " +
-    ".footer-email, " +
-    ".footer-nav a, " +
-    ".footer-social a, " +
-    ".footer-location, " +
-    ".footer-bottom"
+      ".footer-cta, " +
+      ".footer-email, " +
+      ".footer-nav a, " +
+      ".footer-social a, " +
+      ".footer-location, " +
+      ".footer-bottom",
   );
 
   if (footerContent.length) {
@@ -977,76 +703,104 @@ if (section && track && letters.length) {
       scrollTrigger: {
         trigger: footer,
         start: "top 85%",
-        toggleActions: "play none none reverse"
-      }
+        toggleActions: "play none none reverse",
+      },
     });
   }
 
-  // ========================================
-  // 4. REVIVE LETTER ANIMATION
-  // ========================================
+  const reviveSettings = [
+    { x: -180, y: -100, rotation: -35, scale: 0.65, delay: 0 },
+    { x: 150, y: 120, rotation: 35, scale: 0.65, delay: 0.15 },
+    { x: -100, y: 150, rotation: -25, scale: 0.65, delay: 0.3 },
+    { x: 80, y: -140, rotation: 45, scale: 0.65, delay: 0.45 },
+    { x: 150, y: 100, rotation: 30, scale: 0.65, delay: 0.6 },
+    { x: 180, y: -100, rotation: -35, scale: 0.65, delay: 0.75 },
+  ];
 
-  if (!reviveContainer || !reviveLetters.length) return;
+  if (reviveContainer && reviveLetters.length) {
+    reviveLetters.forEach((letter, index) => {
+      const setting = reviveSettings[index];
 
-  // Initial positions for each letter
-  reviveLetters.forEach((letter, index) => {
-    const setting = reviveSettings[index];
+      if (!setting) return;
 
-    if (!setting) return;
-
-    gsap.set(letter, {
-      x: setting.x,
-      y: setting.y,
-      rotation: setting.rotation,
-      scale: setting.scale,
-      autoAlpha: 0,
-      transformOrigin: "center center"
+      gsap.set(letter, {
+        x: setting.x,
+        y: setting.y,
+        rotation: setting.rotation,
+        scale: setting.scale,
+        autoAlpha: 0,
+        transformOrigin: "center center",
+      });
     });
-  });
 
-  // Scroll controls the animation progress
-  const reviveTimeline = gsap.timeline({
-    scrollTrigger: {
-      trigger: reviveContainer,
-      start: "top 90%",
-      end: "bottom 100%",
-      scrub: 0.5,
-      invalidateOnRefresh: true
-    }
-  });
-
-  reviveLetters.forEach((letter, index) => {
-    const setting = reviveSettings[index];
-
-    if (!setting) return;
-
-    reviveTimeline.to(
-      letter,
-      {
-        x: 0,
-        y: 0,
-        rotation: 0,
-        scale: 1,
-        autoAlpha: 1,
-        duration: 2.5,
-        ease: "power3.out",
-        overwrite: "auto"
+    const reviveTimeline = gsap.timeline({
+      scrollTrigger: {
+        trigger: reviveContainer,
+        start: "top 90%",
+        end: "bottom 100%",
+        scrub: 0.5,
+        invalidateOnRefresh: true,
       },
-      setting.delay
-    );
-  });
+    });
 
-  // ========================================
-  // 5. REFRESH SCROLLTRIGGER
-  // ========================================
+    reviveLetters.forEach((letter, index) => {
+      const setting = reviveSettings[index];
 
-  window.addEventListener(
-    "load",
-    () => ScrollTrigger.refresh(),
-    { once: true }
-  );
+      if (!setting) return;
 
-  window.addEventListener("resize", () => {
+      reviveTimeline.to(
+        letter,
+        {
+          x: 0,
+          y: 0,
+          rotation: 0,
+          scale: 1,
+          autoAlpha: 1,
+          duration: 2.5,
+          ease: "power3.out",
+          overwrite: "auto",
+        },
+        setting.delay,
+      );
+    });
+  }
+}
+
+
+
+/* ==========================================================================
+   GLOBAL RESPONSIVE REFRESH
+   ========================================================================== */
+
+let refreshResizeTimer;
+
+function refreshScrollTriggers() {
+  clearTimeout(refreshResizeTimer);
+
+  refreshResizeTimer = setTimeout(() => {
+    ScrollTrigger.refresh();
+  }, 200);
+}
+
+// Wait until the page and its assets have loaded.
+window.addEventListener(
+  "load",
+  () => {
+    ScrollTrigger.refresh();
+  },
+  { once: true },
+);
+
+// Recalculate positions after browser resizing.
+window.addEventListener("resize", refreshScrollTriggers);
+
+// Handle mobile/tablet orientation changes.
+window.addEventListener("orientationchange", refreshScrollTriggers);
+
+// Recalculate after web fonts finish loading.
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(() => {
     ScrollTrigger.refresh();
   });
-})();
+}
+  
